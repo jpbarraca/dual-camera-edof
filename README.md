@@ -7,6 +7,16 @@ The resulting image can be used in a image editor to add depth specific effects.
 
 Tested with a Huawei P9 but it may work with smartphones using the same technologies.
 
+## Usage
+
+```
+Usage: extract_edof.py [options] img1 img2 img3...
+Options:
+    -o: Save the original image to the same directory
+    -e: Save the EDOF as an image to the same directory
+    -v: View the EDOF image
+```
+
 ## Requirements
 
 * Python3
