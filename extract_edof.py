@@ -7,81 +7,82 @@ import sys
 import binascii
 from PIL import Image
 
-show_image = False
-save_image = False
+# Configuration defaults
+show_edof = True
+save_edof = False
+save_original = False
 
-def extract_edof(fin, fname):
-	data = fin.read(2) # Skip
 
-	data = fin.read(4)
-	if data != b'edof':
+def extract_edof(data, idx, fname):
+	if data[idx + 4:idx + 8] != b'edof':
 		print("ERROR: Frame is not EDOF")
 		return False
 	
-	print("Found EDOF Header")
-	data = fin.read(68)
-
-	columns = int.from_bytes(data[16:18], byteorder='little')
-	rows = int.from_bytes(data[18:20], byteorder='little')
-	print("\t * dimensions=%d x %d" % (columns, rows))
-
-	data = fin.read(columns * rows)
-
-	img = Image.frombuffer('L', (columns, rows), data, 'raw', 'L', 0, 0)
+	print("\t* found EDOF header")
+	idx += 8
+	columns = int.from_bytes(data[idx + 16: idx + 18], byteorder='little')
+	rows = int.from_bytes(data[idx + 18: idx + 20], byteorder='little')
+	print("\t  * dimensions=%d x %d" % (columns, rows))
+	
+	idx += 68
+	img = Image.frombuffer('L', (columns, rows), data[idx:], 'raw', 'L', 0, 0)
 	img = img.transpose(Image.FLIP_LEFT_RIGHT)
-	if show_image:
+
+	if show_edof:
 		img.show()
 
-	if save_image:
+	if save_edof:
 		outfname = (''.join(fname.split('.')[:-1])) + '-EDOF.JPG'
-		print("\t * saving to %s" % outfname)
+		print("\t  * saving to %s" % outfname)
 		img.save(outfname)
 
 	return True
 
-def find_eoi(fin, fname):
-	data = fin.read(2)
 
-	while data != b'\xff\xd9':
-		c = fin.read(1)
-		if c == '':
-			print("ERROR: Could not find EOI header")
-			return False
-
-		data = data[1:] + c
-	return True
-
-def find_edof(fin, fname):
-	data = fin.read(2)
-	if data == b'\x56\xe9':
-		return extract_edof(fin, fname)
-		
-	if data[:1] != b"\xff":
-		print("ERROR: Could not find EDOF header")
-		return False
-
-	if data[1:2] == b'\xe0':		
-		pass
-	elif data[1:2] == b'\xd8':
-		find_edof(fin, fname)
-		return
-	elif data[1:2] == b'\xda':
-		if find_eoi(fin, fname):
-			return find_edof(fin, fname)
-		return False
-
-	data = fin.read(6)
-	length = int.from_bytes(data[:1], byteorder='big') * 256 + (int.from_bytes(data[1:2], byteorder='big') - 2)
-	fin.seek(length - 4, 1)
+def scan_segment(data, idx, fname, segment_index):
+	if data[idx:idx + 2] != b'\xff\xd8':
+		return 0
 	
-	find_edof(fin, fname)
+	i = idx + 2
 
+	while i < len(data):
+		if data[i] == 0xff:
+				if data[i + 1] == 0xd9:
+					i += 2
+					continue
+				if data[i + 1] == 0xda: # SOA
+					if save_original:
+						j = i + 2
+						while not (data[j] == 0xff and data[j + 1] == 0xd9):
+							j += 1
+						
+						j += 1
+
+						print("\t* found segment %d, range %d to %d, length %d" % (segment_index, idx, j, j - idx))
+
+						outfname = (''.join(fname.split('.')[:-1])) + ('-%d.JPG' % segment_index)
+						print("\t * saving segment to %s" % outfname)
+						f = open(outfname, "wb")
+						f.write(data[idx: j + 1])
+						f.close()
+					
+					return j 
+				
+				length = 256 * data[i+2] + data[i+3] + 2
+				i += length
+
+				continue
+		i += 1
+
+	return 0
 
 def print_usage():
 	print("Usage: %s [options] img1 img2 img3... " % sys.argv[0])
 	print("Options: ")
-	print("\t-s: Save the EDOF as an image to the same directory")
+	print("\t-o: Save the original image to the same directory")
+	print("\t-e: Save the EDOF as an image to the same directory")
 	print("\t-v: View the EDOF image")
+
 
 def main(fname):
 	print("Processing: %s" % fname)
@@ -93,16 +94,26 @@ def main(fname):
 		print("ERROR: Could not open %s" % fname)
 		return False
 
-	data = fin.read(3)
+	data = fin.read()
 
-	if data != b'\xff\xd8\xff':
+	if data[:3] != b'\xff\xd8\xff':
 		print("No JPEG header found")
 		return False
 
-	print ("\t * scanning file")
+	print ("\t* scanning file")
 
-	if find_eoi(fin, fname):
-		find_edof(fin, fname)
+	idx = 0
+	segment_index = 0
+	while True:
+		r = scan_segment(data, idx, fname, segment_index)
+		if r == 0:
+			# No standard segment was found. Search for EDOF
+			extract_edof(data, idx, fname)
+			break
+
+		segment_index += 1
+		idx = r + 1
+
 
 if __name__ == "__main__":
 	print("Huawei Dual Camera EDOF Extractor\n")
@@ -112,13 +123,19 @@ if __name__ == "__main__":
 		sys.exit(-1)
 	else:
 		for o in sys.argv[1:]:
-			if o == '-s':
-				save_image = True
-			elif o == '-v':
-				show_image = True
-			elif o[0] == '-':
-				print("Unknown Option: %s" % o)
-				print_usage()
-				sys.exit(-1)
-			else:
-				main(o)
+			if o.startswith("-"):
+				for c in o[1:]:
+					if c == 'e':
+						save_edof = True
+					elif c == 'o':
+						save_original = True
+					elif c == 'v':
+						show_edof = True
+					else:
+						print("Unknown Option: %s" % c)
+						print_usage()
+						sys.exit(-1)
+				
+		for p in sys.argv[1:]:
+			if p[0] != "-":
+				main(p)
