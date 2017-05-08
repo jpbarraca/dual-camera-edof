@@ -22,10 +22,13 @@ def extract_edof(data, idx, fname):
 	columns = int.from_bytes(data[idx + 16: idx + 18], byteorder='little')
 	rows = int.from_bytes(data[idx + 18: idx + 20], byteorder='little')
 	print("\t* found EDOF at %d with geometry=%dx%d" % (idx, columns, rows))
-	
+
+	orientation = data[idx + 7]
+
 	idx += 68
 	img = Image.frombuffer('L', (columns, rows), data[idx:], 'raw', 'L', 0, 0)
-	img = img.transpose(Image.FLIP_LEFT_RIGHT)
+	if orientation == 0x10:
+		img = img.transpose(Image.FLIP_TOP_BOTTOM)
 
 	if show_edof:
 		img.show()
@@ -100,6 +103,10 @@ def main(fname):
 		return False
 
 	print ("\t* scanning file")
+
+	if  data.find(bytes([0x00, 0x65, 0x64, 0x6f, 0x66, 0x00])) < 0:
+		print("No EDOF header found")
+		return False
 
 	idx = 0
 	segment_index = 0
