@@ -8,7 +8,7 @@ import binascii
 from PIL import Image
 
 # Configuration defaults
-show_edof = True
+show_edof = False
 save_edof = False
 save_original = False
 
