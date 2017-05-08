@@ -117,13 +117,17 @@ def main(fname):
 	while True:
 		r = scan_segment(data, idx, fname, segment_index)
 		if r == -1:
-			# No standard segment was found. Search for EDOF
-			extract_edof(data, idx, fname)
-			break
+			if segment_index > 1:
+				# No standard segment was found. Search for EDOF
+				return extract_edof(data, idx, fname)
+			else:
+				return False
 
 		segment_index += 1
 		idx = r + 1
 
+		if idx > len(data):
+			return False
 
 if __name__ == "__main__":
 	print("Huawei Dual Camera EDOF Extractor\n")
@@ -156,8 +160,9 @@ if __name__ == "__main__":
 				if not os.path.exists(p):
 					print("File not found: %s" % p)
 					continue
-					
-				main(p)
-				if delete_file:
+
+				r = main(p)
+
+				if r and delete_file:
 					print("\t* Deleting file: %s" % p)
 					os.unlink(p)
