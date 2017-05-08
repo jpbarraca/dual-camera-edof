@@ -18,11 +18,10 @@ def extract_edof(data, idx, fname):
 		print("ERROR: Frame is not EDOF")
 		return False
 	
-	print("\t* found EDOF header")
 	idx += 8
 	columns = int.from_bytes(data[idx + 16: idx + 18], byteorder='little')
 	rows = int.from_bytes(data[idx + 18: idx + 20], byteorder='little')
-	print("\t  * dimensions=%d x %d" % (columns, rows))
+	print("\t* found EDOF at %d with geometry=%dx%d" % (idx, columns, rows))
 	
 	idx += 68
 	img = Image.frombuffer('L', (columns, rows), data[idx:], 'raw', 'L', 0, 0)
@@ -41,25 +40,25 @@ def extract_edof(data, idx, fname):
 
 def scan_segment(data, idx, fname, segment_index):
 	if data[idx:idx + 2] != b'\xff\xd8':
-		return 0
-	
-	i = idx + 2
+		return -1
 
+	i = idx + 2
 	while i < len(data):
 		if data[i] == 0xff:
-				if data[i + 1] == 0xd9:
+				if data[i + 1] == 0xd9 or data[i + 1] == 0xd8:
 					i += 2
 					continue
+
 				if data[i + 1] == 0xda: # SOA
-					if save_original:
-						j = i + 2
-						while not (data[j] == 0xff and data[j + 1] == 0xd9):
-							j += 1
-						
+					j = i + 2
+					while not (data[j] == 0xff and data[j + 1] == 0xd9):
 						j += 1
+					
+					j += 1
 
-						print("\t* found segment %d, range %d to %d, length %d" % (segment_index, idx, j, j - idx))
+					print("\t* found segment %d, range %d to %d, length %d" % (segment_index, idx, j, j - idx))
 
+					if save_original:
 						outfname = (''.join(fname.split('.')[:-1])) + ('-%d.JPG' % segment_index)
 						print("\t * saving segment to %s" % outfname)
 						f = open(outfname, "wb")
@@ -106,7 +105,7 @@ def main(fname):
 	segment_index = 0
 	while True:
 		r = scan_segment(data, idx, fname, segment_index)
-		if r == 0:
+		if r == -1:
 			# No standard segment was found. Search for EDOF
 			extract_edof(data, idx, fname)
 			break
