@@ -4,6 +4,7 @@
 # Author João Paulo Barraca <jpbarraca@gmail.com>
 
 import sys
+import os
 import binascii
 from PIL import Image
 
@@ -11,7 +12,8 @@ from PIL import Image
 show_edof = False
 save_edof = False
 save_original = False
-
+save_processed = False
+delete_file = False
 
 def extract_edof(data, idx, fname):
 	if data[idx + 4:idx + 8] != b'edof':
@@ -61,7 +63,7 @@ def scan_segment(data, idx, fname, segment_index):
 
 					print("\t* found segment %d, range %d to %d, length %d" % (segment_index, idx, j, j - idx))
 
-					if save_original:
+					if (save_original and segment_index == 1) or (save_processed and segment_index == 0):
 						outfname = (''.join(fname.split('.')[:-1])) + ('-%d.JPG' % segment_index)
 						print("\t * saving segment to %s" % outfname)
 						f = open(outfname, "wb")
@@ -81,9 +83,11 @@ def scan_segment(data, idx, fname, segment_index):
 def print_usage():
 	print("Usage: %s [options] img1 img2 img3... " % sys.argv[0])
 	print("Options: ")
-	print("\t-o: Save the original image to the same directory")
+	print("\t-p: Save the originaly processed image to the same directory")
+	print("\t-o: Save the originaly unprocessed image to the same directory")
 	print("\t-e: Save the EDOF as an image to the same directory")
 	print("\t-v: View the EDOF image")
+	print("\t-d: Delete file and only keep extracted (will enforce -o -e)")
 
 
 def main(fname):
@@ -135,8 +139,13 @@ if __name__ == "__main__":
 						save_edof = True
 					elif c == 'o':
 						save_original = True
+					elif c == 'p':
+						save_processed = True
 					elif c == 'v':
 						show_edof = True
+					elif c == 'd':
+						save_original = True
+						delete_file = True
 					else:
 						print("Unknown Option: %s" % c)
 						print_usage()
@@ -144,4 +153,11 @@ if __name__ == "__main__":
 				
 		for p in sys.argv[1:]:
 			if p[0] != "-":
+				if not os.path.exists(p):
+					print("File not found: %s" % p)
+					continue
+					
 				main(p)
+				if delete_file:
+					print("\t* Deleting file: %s" % p)
+					os.unlink(p)
