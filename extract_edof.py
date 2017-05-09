@@ -36,7 +36,7 @@ def extract_edof(data, idx, fname):
 		img.show()
 
 	if save_edof:
-		outfname = (''.join(fname.split('.')[:-1])) + '-EDOF.JPG'
+		outfname = (''.join(fname.split('.')[:-1])) + '-EDOF.png'
 		print("\t  * saving to %s" % outfname)
 		img.save(outfname)
 
