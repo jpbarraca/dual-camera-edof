@@ -132,6 +132,10 @@ def main(fname):
 if __name__ == "__main__":
 	print("Huawei Dual Camera EDOF Extractor\n")
 
+	if sys.version_info[0] < 3:
+		print("This script requires Python 3")
+		sys.exit(-1)
+
 	if len(sys.argv) < 2:
 		print_usage()
 		sys.exit(-1)
