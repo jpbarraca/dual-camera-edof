@@ -12,9 +12,11 @@ Tested with a Huawei P9 but it may work with smartphones using the same technolo
 ```
 Usage: extract_edof.py [options] img1 img2 img3...
 Options:
-    -o: Save the original image to the same directory
+    -p: Save the originaly processed image to the same directory
+    -o: Save the originaly unprocessed image to the same directory
     -e: Save the EDOF as an image to the same directory
     -v: View the EDOF image
+    -d: Delete file and only keep extracted (will enforce -o -e)
 ```
 
 ## Requirements
