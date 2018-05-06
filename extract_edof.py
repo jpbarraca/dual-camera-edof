@@ -31,6 +31,10 @@ def extract_edof(data, idx, fname):
 	img = Image.frombuffer('L', (columns, rows), data[idx:], 'raw', 'L', 0, 0)
 	if orientation == 0x10:
 		img = img.transpose(Image.FLIP_TOP_BOTTOM)
+	elif orientation == 0x12:
+		img = img.transpose(Image.FLIP_LEFT_RIGHT)
+	elif orientation == 0x13:
+		img = img.transpose(Image.TRANSPOSE)
 
 	if show_edof:
 		img.show()
